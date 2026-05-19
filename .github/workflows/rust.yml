@@ -1,0 +1,87 @@
+name: Generate and Push Hosts File
+
+on:
+  # 手动触发
+  workflow_dispatch:
+  # 定时触发（每天北京时间早上8点）
+  schedule:
+    - cron: '0 0 * * *'
+  # 也可以选择在push到特定分支时触发
+  # push:
+  #   branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  generate-hosts:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        # 确保有完整的git历史
+        fetch-depth: 0
+    
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+    
+    - name: Build project
+      run: cargo build --release
+    
+    - name: Run cargo run to generate hosts file
+      run: cargo run
+    
+    - name: Check if hosts file exists
+      id: check-hosts
+      run: |
+        if [ -f "hosts" ]; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "Hosts file generated successfully"
+          # 可选：显示文件大小
+          ls -lh hosts
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "Warning: hosts file not generated"
+        fi
+    
+    - name: Configure Git
+      if: steps.check-hosts.outputs.exists == 'true'
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+    
+    - name: Commit and push hosts file
+      if: steps.check-hosts.outputs.exists == 'true'
+      run: |
+        # 检查是否有变更
+        if git diff --quiet hosts; then
+          echo "No changes to hosts file"
+          exit 0
+        fi
+        
+        # 添加文件
+        git add hosts
+        
+        # 提交变更
+        git commit -m "Update hosts file - $(date '+%Y-%m-%d %H:%M:%S')"
+        
+        # 推送到仓库
+        git push origin HEAD:${GITHUB_REF_NAME}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
