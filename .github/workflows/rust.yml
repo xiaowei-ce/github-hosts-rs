@@ -19,9 +19,7 @@ jobs:
         fetch-depth: 0
     
     - name: Setup Rust
-      uses: actions-rust-lang/setup-rust@v1
-      with:
-        toolchain: stable
+      uses: dtolnay/rust-toolchain@stable
     
     - name: Cache cargo registry
       uses: actions/cache@v3
