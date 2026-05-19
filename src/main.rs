@@ -59,15 +59,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Ok(body) = &body_res {
             if let Some(content) = scraper::Html::parse_document(body.as_str()).select(&selector).next() {
                 if let Some(domain_ip) = parse_ip_domain(content.text().collect::<String>().as_str(),&re) {
-                    let domain_ip_text = format!("{} {}",domain_ip.0,domain_ip.1);
-                    writeln!(bufwriter,"{}", domain_ip_text).unwrap();
-                    println!("{domain_ip_text}");
+                    writeln!(bufwriter,"{}", format!("{} {}",domain_ip.1,domain_ip.0)).unwrap();
                     count.0+=1;
                 }
             }else {
                 count.1+=1;
                 writeln!(bufwriter,"#fail {}", domain).unwrap();
-                println!("#fail {}", domain);
             }
         }
     }
@@ -81,10 +78,8 @@ fn parse_ip_domain<'a>(text: &'a str, re: &regex::Regex) -> Option<(&'a str, &'a
     if let Some(caps) = re.captures(text) {
         let domain = caps.get(1).unwrap().as_str();
         let ip = caps.get(2).unwrap().as_str();
-        println!("{} {}", domain, ip);
         Option::Some( (domain ,ip) )
     }else {
-        println!("#{}",text);
         Option::None
     }
 }
